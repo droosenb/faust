@@ -22,24 +22,14 @@
  *
  */
 
-//TODO
-/*
-    - change the write/read Reg to be idf commplient
-    - remove headphone detect or rewrite the code
-    - maybe remove functionality?
+//this driver is adaped from the es8338 drivers in the espressif esp-adf. See es8388.h for details
 
-*/
 #include <string.h>
-#include "esp_log.h" //remove
-//#include "i2c_bus.h" //remove
+#include "esp_log.h" 
 #include "es8388.h"
-//#include "board_pins_config.h" //remove
 
-#ifdef CONFIG_ESP_LYRAT_V4_3_BOARD
-//#include "headphone_detect.h" //remove?
-#endif
 
-//from the example. nessecary info for I2C. common protocol defines
+//simple i2c definitions
 #define WRITE_BIT                          I2C_MASTER_WRITE /*!< I2C master write */
 #define READ_BIT                           I2C_MASTER_READ  /*!< I2C master read */
 #define ACK_CHECK_EN                       0x1              /*!< I2C master will check ack from slave*/
@@ -50,15 +40,13 @@
 #define I2C_TX_BUF_DISABLE  	0                /*!< I2C master do not need buffer */
 #define I2C_RX_BUF_DISABLE  	0                /*!< I2C master do not need buffer */
 
-#define PA_ENABLE_GPIO          GPIO_NUM_21 //a relevent GPIO pin for the LYRAT 4.2, not sure the purpose
-
 
 esp_err_t es8388::es_write_reg(uint8_t Address, uint8_t Register, uint8_t Data)
 {
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     // first, send device address (indicating write) & register to be written
-    i2c_master_write_byte(cmd, Address | WRITE_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, Address | WRITE_BIT, ACK_CHECK_EN);  //bit shifting the address causes problems with i2c r/w, seems es8388 specific
     // send register we want
     i2c_master_write_byte(cmd, Register, ACK_CHECK_EN);
     // write the data
@@ -66,15 +54,10 @@ esp_err_t es8388::es_write_reg(uint8_t Address, uint8_t Register, uint8_t Data)
     i2c_master_stop(cmd);
     esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
-    printf("Wrote: Address: %u Register: %u Data: %u\n", Address, Register, Data);
+    //printf("Wrote: Address: %u Register: %u Data: %u\n", Address, Register, Data);
     return ret;
 }
-/*
-esp_err_t es8388::es8388_write_reg(uint8_t reg_add, uint8_t data)
-{
-    return es_write_reg(ES8388_ADDR, reg_add, data);
-}
-*/
+
 
 esp_err_t es8388::es_read_reg(uint8_t Register, uint8_t *Data) {
 
@@ -164,14 +147,14 @@ int es8388::es8388_set_adc_dac_volume(int mode, int volume, int dot)
 
 
 /**
- * @brief Power Management
+ * @brief  Start ES8388 codec chip
  *
- * @param mod:      if ES_POWER_CHIP, the whole chip including ADC and DAC is enabled
- * @param enable:   false to disable true to enable
+ * @param mode:  set ADC or DAC or both
+ *      
  *
  * @return
- *     - (-1)  Error
- *     - (0)   Success
+ *     - ESP_OK
+ *     - ESP_FAIL
  */
 esp_err_t es8388::es8388_start(int mode)
 {
@@ -206,14 +189,13 @@ esp_err_t es8388::es8388_start(int mode)
 }
 
 /**
- * @brief Power Management
+ * @brief  Stop ES8388 codec chip
  *
- * @param mod:      if ES_POWER_CHIP, the whole chip including ADC and DAC is enabled
- * @param enable:   false to disable true to enable
+ * @param mode:  set ADC or DAC or both
  *
  * @return
- *     - (-1)  Error
- *     - (0)   Success
+ *     - ESP_OK
+ *     - ESP_FAIL
  */
 esp_err_t es8388::es8388_stop(int mode)
 {
@@ -268,27 +250,24 @@ esp_err_t es8388::es8388_deinit(void)
 {
     int res = 0;
     res = es_write_reg(ES8388_ADDR, ES8388_CHIPPOWER, 0xFF);  //reset and stop es8388
-    //i2c_bus_delete(i2c_handle); //handles are done indivualy within read/write
-#ifdef CONFIG_ESP_LYRAT_V4_3_BOARD
-    headphone_detect_deinit();
-#endif
+    
 
     return res;
 }
 
 /**
+ * @brief Initialize ES8388 codec chip
+ *
+ * @param cfg configuration of ES8388
+ *
  * @return
- *     - (-1)  Error
- *     - (0)   Success
+ *     - ESP_OK
+ *     - ESP_FAIL
  */
 esp_err_t es8388::es8388_init(audio_hal_codec_config_t *cfg)
 {
     int res = 0;
-    /*
-    #ifdef CONFIG_ESP_LYRAT_V4_3_BOARD
-    h   eadphone_detect_init(get_headphone_detect_gpio());
-    #endif
-    */
+    
     i2c_init(); // ESP32 in master mode
 
     res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL3, 0x04);  // 0x04 mute/0x00 unmute&ramp;DAC unmute and  disabled digital volume control soft ramp
@@ -390,11 +369,14 @@ esp_err_t es8388::es8388_set_voice_volume(int volume)
     res |= es_write_reg(ES8388_ADDR, ES8388_DACCONTROL27, 0);
     return res;
 }
-
 /**
+ * @brief Get voice volume
+ *
+ * @param[out] *volume:  voice volume (0~100)
  *
  * @return
- *           volume
+ *     - ESP_OK
+ *     - ESP_FAIL
  */
 esp_err_t es8388::es8388_get_voice_volume(int *volume)
 {
@@ -460,6 +442,15 @@ esp_err_t es8388::es8388_set_voice_mute(bool enable)
     return res;
 }
 
+/**
+ * @brief Get ES8388 DAC mute status
+ * 
+ * @param[out] *enbale: unmuted - (false), muted - (true)
+ *
+ * @return
+ *     - ESP_FAIL Parameter error
+ *     - ESP_OK   Success
+ */
 esp_err_t es8388::es8388_get_voice_mute(bool *enable)
 {
     esp_err_t res = ESP_OK;
@@ -554,7 +545,7 @@ int es8388::es8388_ctrl_state(audio_hal_codec_mode_t mode, audio_hal_ctrl_t ctrl
     return res;
 }
 
-esp_err_t es8388::es8388_config_i2s(audio_hal_codec_mode_t mode, audio_hal_codec_i2s_iface_t *iface)
+esp_err_t es8388::es8388_config_i2s(audio_hal_codec_mode_t mode, audio_hal_codec_i2s_iface_t *iface) //must be performed at startup in main
 {
     esp_err_t res = ESP_OK;
     int tmp = 0;
@@ -570,7 +561,15 @@ esp_err_t es8388::es8388_config_i2s(audio_hal_codec_mode_t mode, audio_hal_codec
     return res;
 }
 
-void es8388::es8388_pa_power(bool enable)
+/**
+ * @brief Set ES8388 power amplifer status
+ *
+ * @param enable true for enable PA power, false for disable PA power
+ *
+ * @return
+ *      - void
+ */
+void es8388::es8388_pa_power(bool enable) //usually turned on es8388_init()
 {
     gpio_config_t  io_conf;
     memset(&io_conf, 0, sizeof(io_conf));

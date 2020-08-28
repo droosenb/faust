@@ -46,7 +46,7 @@ echoHelp ()
     option -midi
     option -main "add a 'main' entry point"
     option "-nvoices <num>"
-    option "-wm8978, -es8338 or -ac101" "to choose codec driver"
+    option "-wm8978, -es8388 or -ac101" "to choose codec driver"
     option "Faust options"
 }
 

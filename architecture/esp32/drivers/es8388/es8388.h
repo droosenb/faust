@@ -22,6 +22,14 @@
  *
  */
 
+/**
+ * This driver is adaped from the esp-adf es8388 driver for the esp-idf. 
+ * The esp-adf version includes various objects and library dependencies not nessecary for the implementation of faust
+ * Some of these configuration elements have been preserved in adf_structs.h
+ * This library seeks to provide the complete funtionality of the driver from the esp-adf, but compatible for the esp-idf
+ * it is deigned to be used with the LyraT, but should function for any esp32 using the es8388, given the relevent i2c and i2s pin changes
+ */
+
 #ifndef __es8388_H__
 #define __es8388_H__
 
@@ -29,11 +37,13 @@
 #include "driver/i2c.h" 
 #include "adf_structs.h" 
 
+//pin assignments unique to the LyraT
+#define I2C_MASTER_SCL_IO   GPIO_NUM_23 //LyraT 4.2 i2c scl gpio pin
+#define I2C_MASTER_SDA_IO   GPIO_NUM_18 //LyraT 4.2 i2c sda gpio pin
+
+#define PA_ENABLE_GPIO      GPIO_NUM_21 //LyraT 4.2 pa enable gpio pin
 
 #define I2C_MASTER_NUM I2C_NUM_1 /*!< I2C port number for master dev */
-
-#define I2C_MASTER_SCL_IO GPIO_NUM_23//these may be wrong 
-#define I2C_MASTER_SDA_IO GPIO_NUM_18
 
 #define I2C_MASTER_FREQ_HZ 100000
 #define I2C_MASTER_TX_BUF_DISABLE 0
@@ -45,7 +55,7 @@
 
 
 /* ES8388 address */
-#define ES8388_ADDR 0x20  /*!< 0x22:CE=1;0x20:CE=0*/
+#define ES8388_ADDR 0x20  //address is 0x20 if pulled up, 0x22 if pulled down
 
 /* ES8388 registers */
 #define ES8388_CONTROL1         0x00
@@ -172,6 +182,7 @@ public:
      * @brief  Start ES8388 codec chip
      *
      * @param mode:  set ADC or DAC or both
+     *      
      *
      * @return
      *     - ESP_OK
@@ -225,8 +236,10 @@ public:
 
     /**
      * @brief Get ES8388 DAC mute status
+     * 
+     * @param[out] *enbale: unmuted - (false), muted - (true)
      *
-     *  @return
+     * @return
      *     - ESP_FAIL Parameter error
      *     - ESP_OK   Success
      */
@@ -286,7 +299,7 @@ public:
     void es8388_read_all();
 
     /**
-     * @brief Configure ES8388 codec mode and I2S interface
+     * @brief Configure ES8388 codec mode and I2S interface. must be done before use
      *
      * @param mode codec mode
      * @param iface I2S config
@@ -298,7 +311,6 @@ public:
     esp_err_t es8388_config_i2s(audio_hal_codec_mode_t mode, audio_hal_codec_i2s_iface_t *iface);
 
     /**
-     * likely unneeded by the current iteration
      * @brief Control ES8388 codec chip
      *
      * @param mode codec mode
@@ -311,7 +323,7 @@ public:
     esp_err_t es8388_ctrl_state(audio_hal_codec_mode_t mode, audio_hal_ctrl_t ctrl_state);
 
     /**
-     * @brief Set ES8388 PA power
+     * @brief Set ES8388 power amplifer status
      *
      * @param enable true for enable PA power, false for disable PA power
      *
