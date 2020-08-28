@@ -37,12 +37,13 @@
 #include "driver/i2c.h" 
 #include "adf_structs.h" 
 
-//pin assignments unique to the LyraT
+/* pin assignments unique to the LyraT */
 #define I2C_MASTER_SCL_IO   GPIO_NUM_23 //LyraT 4.2 i2c scl gpio pin
 #define I2C_MASTER_SDA_IO   GPIO_NUM_18 //LyraT 4.2 i2c sda gpio pin
 
 #define PA_ENABLE_GPIO      GPIO_NUM_21 //LyraT 4.2 pa enable gpio pin
 
+/* I2C configuration */
 #define I2C_MASTER_NUM I2C_NUM_1 /*!< I2C port number for master dev */
 
 #define I2C_MASTER_FREQ_HZ 100000
@@ -340,3 +341,5 @@ private:
 };
 
 #endif //__ES8388_H__
+
+//this driver was adapted by Dirk Roosenburg for use in the faust architecture

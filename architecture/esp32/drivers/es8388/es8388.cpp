@@ -98,6 +98,7 @@ void es8388::i2c_init(void)
     		I2C_RX_BUF_DISABLE, I2C_TX_BUF_DISABLE, 0);
 
 }
+
 /**
  * @brief Read the current values of each register in order and printt them to the screen
  */
@@ -251,7 +252,6 @@ esp_err_t es8388::es8388_deinit(void)
     int res = 0;
     res = es_write_reg(ES8388_ADDR, ES8388_CHIPPOWER, 0xFF);  //reset and stop es8388
     
-
     return res;
 }
 
@@ -585,3 +585,5 @@ void es8388::es8388_pa_power(bool enable) //usually turned on es8388_init()
         gpio_set_level(PA_ENABLE_GPIO, 0);
     }
 }
+
+//this driver was adapted by Dirk Roosenburg for use in the faust architecture
